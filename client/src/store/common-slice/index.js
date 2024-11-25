@@ -4,28 +4,59 @@ import axios from "axios";
 const initialState = {
   isLoading: false,
   featureImageList: [],
+  error: null
 };
 
 export const getFeatureImages = createAsyncThunk(
-  "/order/getFeatureImages",
+  "common/getFeatureImages",
   async () => {
-    const response = await axios.get(
-      `http://localhost:5000/api/common/feature/get`
-    );
-
-    return response.data;
+    try {
+      const response = await axios.get(
+        `http://localhost:5000/api/common/feature/get`
+      );
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error.message;
+    }
   }
 );
 
 export const addFeatureImage = createAsyncThunk(
-  "/order/addFeatureImage",
+  "common/addFeatureImage",
   async (image) => {
-    const response = await axios.post(
-      `http://localhost:5000/api/common/feature/add`,
-      { image }
-    );
+    try {
+      const response = await axios.post(
+        `http://localhost:5000/api/common/feature/add`,
+        { image }
+      );
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error.message;
+    }
+  }
+);
 
-    return response.data;
+export const deleteFeatureImage = createAsyncThunk(
+  "common/deleteFeatureImage",
+  async (imageId, { rejectWithValue }) => {
+    try {
+      console.log('Attempting to delete image with ID:', imageId);
+      const response = await axios.delete(
+        `http://localhost:5000/api/common/feature/delete/${imageId}`
+      );
+      console.log('Delete response:', response.data);
+      
+      if (!response.data.success) {
+        return rejectWithValue(response.data.message || 'Failed to delete image');
+      }
+      
+      return response.data;
+    } catch (error) {
+      console.error('Delete error:', error.response || error);
+      return rejectWithValue(
+        error.response?.data?.message || error.message || 'Failed to delete image'
+      );
+    }
   }
 );
 
@@ -37,14 +68,31 @@ const commonSlice = createSlice({
     builder
       .addCase(getFeatureImages.pending, (state) => {
         state.isLoading = true;
+        state.error = null;
       })
       .addCase(getFeatureImages.fulfilled, (state, action) => {
         state.isLoading = false;
         state.featureImageList = action.payload.data;
+        state.error = null;
       })
-      .addCase(getFeatureImages.rejected, (state) => {
+      .addCase(getFeatureImages.rejected, (state, action) => {
         state.isLoading = false;
-        state.featureImageList = [];
+        state.error = action.error.message;
+      })
+      .addCase(deleteFeatureImage.pending, (state) => {
+        state.isLoading = true;
+        state.error = null;
+      })
+      .addCase(deleteFeatureImage.fulfilled, (state, action) => {
+        state.isLoading = false;
+        state.featureImageList = state.featureImageList.filter(
+          (item) => item._id !== action.payload.data._id
+        );
+        state.error = null;
+      })
+      .addCase(deleteFeatureImage.rejected, (state, action) => {
+        state.isLoading = false;
+        state.error = action.payload || action.error.message;
       });
   },
 });
